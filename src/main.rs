@@ -1,4 +1,4 @@
-//! You can see this example in https://github.com/vinteumorg/Floresta 
+//! You can see this example in https://github.com/vinteumorg/Floresta
 //! inside the floresta crate.
 use std::str::FromStr;
 use std::sync::Arc;
@@ -20,8 +20,25 @@ use tokio::sync::RwLock;
 use wk_utils::cleanup;
 use wk_utils::get_tempdir;
 
+const TEMP_DATA_DIR: &str = "~/.floresta_workshop";
+
 mod wk_utils;
 #[tokio::main]
 async fn main() {
     //Step 1: Create a ChainState to store the accumulator and the headers chain.
+
+    // firstly a database
+    let db =
+        KvChainStore::new(TEMP_DATA_DIR.into()).expect("failed to open the blockchain database");
+
+    // Create a new chainstate instance to keep track of our data
+    let chain = Arc::new(ChainState::<KvChainStore>::new(
+        db,               // Our database in $HOME/.floresta_workshop/
+        Network::Bitcoin, // Network indicates which network we will store blocks from.
+        // Read about [`Network`] in the bitcoin crate to know the enum.
+        AssumeValidArg::Disabled, // We use AssumeValidArg for assuming when to validate blocks.
+                                  // This sets to validate all blocks.
+    ));
+
+    //Step 2: Create a new node that will connect to the Bitcoin Network and start requesting blocks.
 }
