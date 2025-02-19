@@ -59,4 +59,14 @@ async fn main() {
     .unwrap();
 
     //Step 3: Get a stop signal and Starts the node!
+
+    // Once this is changed to true the node will do its procedure to stop.
+    let mut stop_signal = false;
+
+    // We need to set a channel to receive a signal if the node breaks.
+    let (sender, _receiver) = futures::channel::oneshot::channel();
+
+    p2p.run(Arc::new(RwLock::new(stop_signal)), sender).await;
+
+    //Step 4: Starts the main loop and starts consuming the node.
 }
