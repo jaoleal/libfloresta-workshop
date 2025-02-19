@@ -20,7 +20,7 @@ use tokio::sync::RwLock;
 use wk_utils::cleanup;
 use wk_utils::get_tempdir;
 
-const TEMP_DATA_DIR: &str = "~/.floresta_workshop";
+const TEMP_DATA_DIR: &str = ".floresta_workshop";
 
 mod wk_utils;
 #[tokio::main]
@@ -41,4 +41,22 @@ async fn main() {
     ));
 
     //Step 2: Create a new node that will connect to the Bitcoin Network and start requesting blocks.
+    let config = UtreexoNodeConfig::default();
+    //Notes RunningNode, floresta-wire uses different node context to go to these steps:
+    //  1. knowing which chain to download with chain_selector.rs
+    //  2. syncing the chain, valiting and downloading blocks with sync_node.rs
+    //  3. after the syncing phase we need to start listening up for new blocks and
+    // handling user requests with running_node.rs
+    //
+    // We only need to specify running node here because it will switch
+    // between contexts as needed.
+    let p2p: UtreexoNode<Arc<ChainState<KvChainStore>>, RunningNode> = UtreexoNode::new(
+        config,
+        chain.clone(),
+        Arc::new(Mutex::new(Mempool::new(Pollard::default(), 1000))),
+        None,
+    )
+    .unwrap();
+
+    //Step 3: Get a stop signal and Starts the node!
 }
