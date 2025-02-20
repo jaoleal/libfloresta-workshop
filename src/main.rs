@@ -1,24 +1,24 @@
 //! You can see this example in https://github.com/vinteumorg/Floresta
 //! inside the floresta crate.
-use std::str::FromStr;
+
 use std::sync::Arc;
 
-use bitcoin::BlockHash;
 use floresta::chain::pruned_utreexo::BlockchainInterface;
 use floresta::chain::AssumeValidArg;
+
 use floresta::chain::ChainState;
 use floresta::chain::KvChainStore;
 use floresta::chain::Network;
+
 use floresta::wire::mempool::Mempool;
 use floresta::wire::node::UtreexoNode;
-use floresta::wire::node_interface::NodeMethods;
+
 use floresta::wire::running_node::RunningNode;
 use floresta::wire::UtreexoNodeConfig;
 use rustreexo::accumulator::pollard::Pollard;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use wk_utils::cleanup;
-use wk_utils::get_tempdir;
 
 const TEMP_DATA_DIR: &str = ".floresta_workshop";
 
@@ -39,6 +39,9 @@ async fn main() {
         AssumeValidArg::Disabled, // We use AssumeValidArg for assuming when to validate blocks.
                                   // This sets to validate all blocks.
     ));
+
+    // Now if you want to jump the IBD process.
+    // You can use [`AssumeValidArg::Hardcoded`] instead of [`AssumeValidArg::Hardcoded`]
 
     //Step 2: Create a new node that will connect to the Bitcoin Network and start requesting blocks.
     let config = UtreexoNodeConfig::default();
@@ -64,9 +67,35 @@ async fn main() {
     let mut stop_signal = false;
 
     // We need to set a channel to receive a signal if the node breaks.
-    let (sender, _receiver) = futures::channel::oneshot::channel();
+    let (sender, receiver) = futures::channel::oneshot::channel();
+    // Get a handle of the node the be able to use the methods of [`Node_Interface`].
+    let handle = &p2p.get_handle();
 
-    p2p.run(Arc::new(RwLock::new(stop_signal)), sender).await;
-
+    tokio::spawn(p2p.run(Arc::new(RwLock::new(stop_signal)), sender));
+    
     //Step 4: Starts the main loop and starts consuming the node.
+
+    loop {
+        // Stop when it finish the Initial Block Download.
+        if !chain.is_in_idb() {
+            //The node will run until the process exit.
+            //but you can also turn the stop_signal to true.
+            stop_signal = true;
+            break;
+        }
+
+        //Since our chain is being used and updated by the node,
+        //we can keep our eyes on whats going on in the current data!
+        let best_block = chain.get_best_block().unwrap();
+
+        println!(
+            "best block: heigth {:?} hash {:?}",
+            best_block.0, best_block.1
+        );
+
+        // Sleep for 1 seconds, and run the loop again
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+    // Remove the created files.
+    cleanup();
 }
